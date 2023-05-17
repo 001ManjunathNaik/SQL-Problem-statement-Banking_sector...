@@ -1,0 +1,74 @@
+--A. Customer Nodes Exploration
+--1) How many unique nodes are there on the Data Bank system?
+SELECT 
+COUNT(DISTINCT node_id)
+FROM data_bank.customer_nodes;
+
+--2) What is the number of nodes per region?
+SELECT r.region_id, r.region_name, 
+COUNT(*) AS node_count
+FROM data_bank.regions r
+JOIN data_bank.customer_nodes n
+    ON r.region_id = n.region_id
+GROUP BY r.region_id, r.region_name
+ORDER BY region_id;
+
+--3) How many customers are allocated to each region?
+SELECT region_id, 
+COUNT(customer_id) AS customer_count
+FROM data_bank.customer_nodes
+GROUP BY region_id
+ORDER BY region_id;
+
+
+--4) How many days on average are customers reallocated to a different node?
+--here we are using the recursive function 
+WITH node_diff AS (
+  SELECT 
+    customer_id, node_id, start_date, end_date,
+    end_date - start_date AS diff
+  FROM data_bank.customer_nodes
+  WHERE end_date != '9999-12-31'
+  GROUP BY customer_id, node_id, start_date, end_date
+  ORDER BY customer_id, node_id
+  ),
+sum_diff_cte AS (
+  SELECT 
+    customer_id, node_id, SUM(diff) AS sum_diff
+  FROM node_diff
+  GROUP BY customer_id, node_id)
+
+SELECT 
+ROUND(AVG(sum_diff),3) AS avg_reallocation_days
+FROM sum_diff_cte;
+
+
+
+select * from regions
+select * from customer_nodes
+select * from customer_transactions
+--B. Customer Transactions
+--1) What is the unique count and total amount for each transaction type?
+SELECT txn_type, 
+COUNT(*),SUM(txn_amount) AS total_amount
+FROM data_bank.customer_transactions
+GROUP BY txn_type
+
+--2) What is the average total historical deposit(deposit transactions) counts and amounts for all customers?
+
+
+----Firstly, find the count of transaction and average transaction amount for each customer.
+ WITH deposits AS (
+  SELECT customer_id, txn_type, 
+    COUNT(*) AS txn_count, 
+    AVG(txn_amount) AS avg_amount
+    FROM data_bank.customer_transactions
+    GROUP BY customer_id, txn_type)
+	
+--Then, find the average of both columns where the transaction type is deposit.
+SELECT 
+  ROUND(AVG(txn_count)) AS avg_deposit, 
+  ROUND(AVG(avg_amount)) AS avg_amount
+FROM deposits
+WHERE txn_type = 'deposit';
+
